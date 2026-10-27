@@ -21,7 +21,7 @@
             🎯 賓果單字格式化工具
         </h1>
         <p class="text-sm text-slate-500 mb-6">
-            上傳 PDF/Word 教材或直接貼上文字，系統將自動從教材中尋找單字單元，轉化為標準格式清單。
+            上傳 PDF/Word 教材，系統會自動排除文法解說，精準從中萃取出單字清單。
         </p>
 
         <!-- 檔案上傳區 -->
@@ -29,12 +29,13 @@
             <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">上傳教材檔案 (支援 PDF, Word .docx, 純文字檔)</label>
             <input type="file" id="fileInput" accept=".pdf,.docx,.txt" onchange="handleFileUpload(event)"
                 class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer">
+            <p class="text-xs text-slate-400 mt-1">💡 建議：若講義很長，可優先上傳包含 Vocabulary 的頁面，速度最快最準確！</p>
         </div>
 
         <!-- 輸入區 -->
         <div class="mb-4">
-            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">原始教材內容 / 單字表（或由上方檔案自動填入）</label>
-            <textarea id="inputText" rows="8" placeholder="請在此貼上教材內容，或透過上方上傳檔案..."
+            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">原始教材內容 / 擷取到的文字預覽</label>
+            <textarea id="inputText" rows="6" placeholder="請在此貼上教材內容，或透過上方上傳檔案..."
                 class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
         </div>
 
@@ -58,7 +59,6 @@
     <script>
         const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz39UJezOwk_8wC3Jd6tvnyrFZM26TiSgTWo68tN3TJJ1kWkcUteR5D3nLzQBJBMmF3hg/exec";
 
-        // 處理檔案上傳與自動解析
         async function handleFileUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -73,11 +73,16 @@
                     const arrayBuffer = await file.arrayBuffer();
                     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
                     let fullText = "";
-                    for (let i = 1; i <= pdf.numPages; i++) {
+                    
+                    // 為了避免整本 PDF 太大爆掉，我們智慧抓取前幾頁或提醒
+                    for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
                         const page = await pdf.getPage(i);
                         const textContent = await page.getTextContent();
                         const pageText = textContent.items.map(item => item.str).join(' ');
                         fullText += `--- Page ${i} ---\n` + pageText + "\n\n";
+                    }
+                    if (pdf.numPages > 10) {
+                        fullText += "\n[系統提示：PDF 超過 10 頁，已自動截取前 10 頁進行分析]";
                     }
                     inputField.value = fullText;
                 } else if (fileName.endsWith('.docx')) {
@@ -108,7 +113,7 @@
             }
 
             btn.disabled = true;
-            btn.textContent = 'AI 正在智慧識別單字單元中，請稍候...';
+            btn.textContent = 'AI 正在精準過濾並萃取單字中，請稍候...';
             outputBox.value = '處理中...';
 
             try {
@@ -125,7 +130,7 @@
                     outputBox.value = '發生錯誤：' + (data.error || '未知錯誤');
                 }
             } catch (error) {
-                outputBox.value = '網路連線或伺服器呼叫失敗：' + error.message;
+                outputBox.value = '網路連線或伺服器呼叫失敗 (Failed to fetch)。請確認 GAS 網址是否正確，或文字量是否過大。';
             } finally {
                 btn.disabled = false;
                 btn.textContent = '開始智慧萃取單字';
