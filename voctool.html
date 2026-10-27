@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教材單字萃取工具</title>
+    <!-- 引入 Tailwind CSS 加快介面設計 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col items-center py-10 px-4">
+
+    <div class="max-w-3xl w-full bg-white shadow-xl rounded-2xl p-8 border border-slate-100">
+        <h1 class="text-2xl font-bold text-slate-900 mb-2 flex items-center gap-2">
+            ✨ 教材單字萃取工具
+        </h1>
+        <p class="text-sm text-slate-500 mb-6">
+            貼上課本內容，系統將自動透過 AI 轉化為「一行一個單字、標準化格式」的純文字清單。
+        </p>
+
+        <!-- 輸入區 -->
+        <div class="mb-4">
+            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">原始課文內容 / 單字表</label>
+            <textarea id="inputText" rows="8" placeholder="請在此貼上課本內容..."
+                class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+        </div>
+
+        <!-- 執行按鈕 -->
+        <button id="processBtn" onclick="processText()" 
+            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg text-sm transition-colors shadow-sm">
+            開始萃取單字
+        </button>
+
+        <!-- 輸出區 -->
+        <div class="mt-6">
+            <div class="flex justify-between items-center mb-1">
+                <label class="block text-xs font-semibold text-slate-600 uppercase">處理結果</label>
+                <button onclick="copyResult()" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">📋 一鍵複製</button>
+            </div>
+            <textarea id="outputText" rows="8" readonly placeholder="處理後的清單將顯示在此..."
+                class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm font-mono focus:outline-none"></textarea>
+        </div>
+    </div>
+
+    <script>
+        // 已內建好你的 Google Apps Script 網頁應用程式網址
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz39UJezOwk_8wC3Jd6tvnyrFZM26TiSgTWo68tN3TJJ1kWkcUteR5D3nLzQBJBMmF3hg/exec";
+
+        async function processText() {
+            const inputText = document.getElementById('inputText').value.trim();
+            const outputBox = document.getElementById('outputText');
+            const btn = document.getElementById('processBtn');
+
+            if (!inputText) {
+                alert('請輸入要處理的內容！');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'AI 正在精準萃取中，請稍候...';
+            outputBox.value = '處理中...';
+
+            try {
+                const response = await fetch(GAS_WEB_APP_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // 避免 CORS 預檢問題
+                    body: JSON.stringify({ text: inputText })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    outputBox.value = data.result;
+                } else {
+                    outputBox.value = '發生錯誤：' + (data.error || '未知錯誤');
+                }
+            } catch (error) {
+                outputBox.value = '網路連線或伺服器呼叫失敗：' + error.message;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '開始萃取單字';
+            }
+        }
+
+        function copyResult() {
+            const outputBox = document.getElementById('outputText');
+            outputBox.select();
+            navigator.clipboard.writeText(outputBox.value);
+            alert('已成功複製到剪貼簿！');
+        }
+    </script>
+</body>
+</html>
